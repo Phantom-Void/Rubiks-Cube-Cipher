@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StealthText • Zero-Width Encoder</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --fg: #00ff41;
+      --fg-dim: #00cc33;
+      --border: #00ff41;
+      --panel: #111111;
+      --glow: rgba(0, 255, 65, 0.25);
+      --red: #ff2d55;
+      --red-hover: #cc223f;
+      --purple-neon: #c300ff;
+      --purple-glow: rgba(195, 0, 255, 0.4);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 20px 16px;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Courier New', 'Consolas', monospace;
+      line-height: 1.5;
+      min-height: 100vh;
+      background-image: 
+        linear-gradient(rgba(0,255,65,0.012) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,65,0.012) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .container { max-width: 1280px; margin: 0 auto; }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2.5rem;
+      text-shadow: 0 0 20px var(--glow), 0 0 40px var(--glow);
+      letter-spacing: 2px;
+    }
+
+    h1 small {
+      font-size: 0.55em;
+      opacity: 0.7;
+      display: block;
+      margin-top: 0.4rem;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 900px) {
+      .split { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.5rem 1.8rem;
+      box-shadow: 0 0 30px var(--glow), inset 0 0 12px rgba(0,255,65,0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 60%, rgba(0,255,65,0.04) 100%);
+      pointer-events: none;
+    }
+
+    h2 {
+      margin: 0 0 1.2rem;
+      color: #00ff88;
+      text-shadow: 0 0 12px var(--glow);
+      font-size: 1.4rem;
+      letter-spacing: 1px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      background: #000;
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1rem;
+      font-family: inherit;
+      font-size: 1.05rem;
+      resize: vertical;
+      margin: 0.8rem 0 1.2rem;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #00ff88;
+      box-shadow: 0 0 16px rgba(0,255,65,0.3);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      margin-bottom: 1.2rem;
+    }
+
+    button {
+      background: var(--fg);
+      color: #000;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      font-size: 0.9rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+      border-radius: 4px;
+      box-shadow: 0 3px 10px var(--glow);
+      transition: all 0.18s ease;
+    }
+
+    button:hover {
+      background: var(--fg-dim);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px var(--glow);
+    }
+
+    .settings-btn { background: #4444ff; color: white; }
+    .settings-btn:hover { background: #3333dd; }
+
+    .copy-btn { background: var(--red); color: white; }
+    .copy-btn:hover { background: var(--red-hover); }
+
+    .settings-panel {
+      background: #0b0b0b;
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      padding: 1.4rem;
+      margin: 1rem 0 1.5rem;
+      display: none;
+    }
+
+    .settings-panel.open { display: block; }
+
+    .setting-row { margin: 1rem 0; }
+
+    .setting-row label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #00ff88;
+      font-size: 0.95rem;
+    }
+
+    select, input[type="checkbox"] {
+      background: #000;
+      color: var(--fg);
+      border: 1px solid var(--border);
+      padding: 0.6rem 0.9rem;
+      font-family: inherit;
+      border-radius: 4px;
+    }
+
+    .output {
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      min-height: 110px;
+      padding: 1rem;
+      font-size: 1.05rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      position: relative;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.7);
+    }
+
+    .feedback {
+      position: absolute;
+      top: 0.8rem;
+      right: 0.8rem;
+      background: var(--fg);
+      color: #000;
+      padding: 0.4rem 0.9rem;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.9rem;
+      opacity: 0;
+      transition: opacity 0.4s;
+      pointer-events: none;
+    }
+
+    .shown { opacity: 1; }
+
+    .footer-boxes {
+      display: flex;
+      justify-content: center;
+      gap: 1.8rem;
+      margin-top: 3.5rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-box {
+      width: 80px;
+      height: 80px;
+      background: #0f0f0f;
+      border: 1px solid #333;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s ease;
+      text-decoration: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+
+    .footer-box:hover {
+      transform: scale(1.12) translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.7);
+      border-color: var(--fg);
+    }
+
+    .footer-box svg {
+      width: 38px;
+      height: 38px;
+    }
+
+    .footer-box.github,
+    .footer-box.green-github {
+      color: #eee;
+    }
+
+    .footer-box.github:hover,
+    .footer-box.green-github:hover {
+      color: var(--fg);
+      border-color: var(--fg);
+    }
+
+    .footer-box.purple {
+      font-family: 'Segoe UI', sans-serif;
+      font-weight: bold;
+      font-size: 2.6rem;
+      color: var(--purple-neon);
+      text-shadow: 0 0 12px var(--purple-glow);
+    }
+
+    .footer-box.purple:hover {
+      color: #e600ff;
+      text-shadow: 0 0 20px var(--purple-glow);
+      border-color: var(--purple-neon);
+    }
+
+    .note {
+      text-align: center;
+      color: #444;
+      font-size: 0.9rem;
+      margin-top: 1.8rem;
+      line-height: 1.6;
+    }
+
+    .note strong { color: #777; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>StealthText <small>v1.0 • Zero-Width Encoder / Decoder</small></h1>
+  </header>
+
+  <div class="split">
+
+    <!-- ENCODE -->
+    <div class="panel">
+      <h2>Encode</h2>
+      <textarea id="encode-input" placeholder="Enter message to hide..."></textarea>
+
+      <div class="controls">
+        <button onclick="encodeMessage()">Encode</button>
+        <button class="settings-btn" onclick="toggleSettings()">Settings</button>
+      </div>
+
+      <div id="settings-panel" class="settings-panel">
+        <div class="setting-row">
+          <label>Bits per character</label>
+          <select id="bits-per-char">
+            <option value="8">8-bit (ASCII, shorter)</option>
+            <option value="16" selected>16-bit (Unicode, longer)</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label>Zero (0) char</label>
+          <select id="zero-char">
+            <option value="200B" selected>U+200B Zero Width Space</option>
+            <option value="2060">U+2060 Word Joiner</option>
+            <option value="FEFF">U+FEFF Zero Width NBSP</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label>One (1) char</label>
+          <select id="one-char">
+            <option value="200C" selected>U+200C Zero Width Non-Joiner</option>
+            <option value="200D">U+200D Zero Width Joiner</option>
+            <option value="200E">U+200E Left-to-Right Mark</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label style="display:flex; align-items:center; gap:0.6rem;">
+            <input type="checkbox" id="auto-copy" checked />
+            Auto-copy after encoding
+          </label>
+        </div>
+      </div>
+
+      <div class="output" id="encode-output">
+        <div id="encode-feedback" class="feedback">COPIED ✓</div>
+        (If u dont see anything... thats the point)
+      </div>
+
+      <button class="copy-btn" id="copy-encode-btn" style="display:none; margin-top:1rem;" onclick="copyEncode()">
+        Copy Invisible Text
+      </button>
+    </div>
+
+    <!-- DECODE -->
+    <div class="panel">
+      <h2>Decode</h2>
+      <textarea id="decode-input" placeholder="Paste text containing hidden message..."></textarea>
+      <div class="controls">
+        <button onclick="decodeMessage()">Decode</button>
+      </div>
+      <div class="output" id="decode-output">
+        (result will appear here)
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-boxes">
+    <a href="https://github.com/Phantom-Void" target="_blank" class="footer-box github" title="GitHub Profile">
+      <svg viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+    </a>
+
+    <a href="https://phantom-void.github.io/Website256/" target="_blank" class="footer-box purple" title="Website 256">
+      256
+    </a>
+
+    <a href="https://github.com/Phantom-Void/Nothing" target="_blank" class="footer-box green-github" title="StealthText Repo">
+      <svg viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+    </a>
+  </div>
+
+  <div class="note">
+    Made by <strong>Josiah Windle</strong> • Columbus, Ohio<br>
+    If you think this is cool (or even if you think it's trash but you're feeling generous)<br>
+    drop a star on GitHub — it would mean a lot :)
+  </div>
+</div>
+
+<script>
+// ────────────────────────────────────────────────
+//   Settings & State
+// ────────────────────────────────────────────────
+let settings = {
+  bits: 16,
+  zero: '\u200B',
+  one:  '\u200C',
+  autoCopy: true
+};
+
+function updateSettings() {
+  settings.bits = parseInt(document.getElementById('bits-per-char').value);
+  settings.zero = String.fromCharCode(parseInt(document.getElementById('zero-char').value, 16));
+  settings.one  = String.fromCharCode(parseInt(document.getElementById('one-char').value, 16));
+  settings.autoCopy = document.getElementById('auto-copy').checked;
+}
+
+document.querySelectorAll('#settings-panel select, #settings-panel input').forEach(el => {
+  el.addEventListener('change', updateSettings);
+});
+
+function toggleSettings() {
+  document.getElementById('settings-panel').classList.toggle('open');
+}
+
+// ────────────────────────────────────────────────
+//   Encode / Copy
+// ────────────────────────────────────────────────
+let encodedText = '';
+
+function encodeMessage() {
+  updateSettings();
+
+  const input = document.getElementById('encode-input').value;
+  let result = '';
+
+  for (let char of input) {
+    let bin = char.charCodeAt(0).toString(2).padStart(settings.bits, '0');
+    for (let bit of bin) {
+      result += bit === '0' ? settings.zero : settings.one;
+    }
+  }
+
+  encodedText = result;
+
+  document.getElementById('encode-output').textContent = result || '(empty message)';
+  document.getElementById('copy-encode-btn').style.display = result ? 'inline-block' : 'none';
+
+  if (settings.autoCopy && result) {
+    copyEncode(true);
+  }
+}
+
+function copyEncode(silent = false) {
+  if (!encodedText) return;
+
+  navigator.clipboard.writeText(encodedText).then(() => {
+    if (!silent) {
+      const fb = document.getElementById('encode-feedback');
+      fb.classList.add('shown');
+      setTimeout(() => fb.classList.remove('shown'), 1600);
+    }
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = encodedText;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (!silent) {
+      const fb = document.getElementById('encode-feedback');
+      fb.textContent = 'COPIED (fallback)';
+      fb.classList.add('shown');
+      setTimeout(() => {
+        fb.classList.remove('shown');
+        fb.textContent = 'COPIED ✓';
+      }, 1600);
+    }
+  });
+}
+
+// ────────────────────────────────────────────────
+//   Decode (tolerant version)
+// ────────────────────────────────────────────────
+function decodeMessage() {
+  const input = document.getElementById('decode-input').value;
+  let binary = '';
+  let result = '';
+
+  const zeros = ['\u200B','\u2060','\uFEFF'];
+  const ones  = ['\u200C','\u200D','\u200E'];
+
+  for (let char of input) {
+    if (zeros.includes(char)) binary += '0';
+    else if (ones.includes(char)) binary += '1';
+
+    if (binary.length === 8 || binary.length === 16) {
+      const code = parseInt(binary, 2);
+      if (code >= 32 && code <= 126 || code === 10 || code === 13) {
+        result += String.fromCharCode(code);
+      }
+      binary = binary.length === 16 ? '' : binary.slice(8);
+    }
+  }
+
+  document.getElementById('decode-output').textContent = 
+    result.trim() || '(no hidden message found)';
+}
+</script>
+</body>
+</html>
